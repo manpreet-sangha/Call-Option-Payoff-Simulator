@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Call Option Payoff Simulator</title>
+  <style>
+    :root{
+      --strike-color: #2e7d32;
+      --premium-color: #9c27b0;
+      --stock-color: #2196f3;
+      --line-default: #1a237e;
+      --canvas-bg: #ffffff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--canvas-bg);
+      padding: 18px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      color: #111;
+      display:flex;
+      justify-content:center;
+    }
+    .container {
+      width:1100px; max-width:100%;
+      background:#fff; border-radius:10px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.08); overflow:hidden;
+    }
+    header { padding:16px 20px; border-bottom:1px solid #eee; }
+    h1 { font-size:18px; color:#222; margin-bottom:4px; }
+    .subtitle { color:#666; font-size:13px; }
+
+    .controls { display:flex; gap:12px; align-items:center; padding:12px 18px; background:#fbfdff; border-bottom:1px solid #eee; flex-wrap:wrap; }
+    .control { display:flex; flex-direction:column; gap:6px; padding:6px 8px; border-radius:8px; border:1px solid #e6eef8; min-width:240px; background:#fff; }
+    .swatch { width:14px; height:14px; border-radius:3px; display:inline-block; margin-right:8px; }
+    .fixed-display { font-size:14px; font-weight:700; padding:6px 8px; background:#fafafa; border-radius:6px; color:#111; border:1px solid #eee; }
+
+    .main { display:flex; gap:0; }
+    .chart-column { flex:1 1 auto; min-height:560px; display:flex; flex-direction:column; }
+    .canvas-container { padding:16px; background:var(--canvas-bg); height:560px; display:flex; align-items:center; justify-content:center; position:relative; }
+    canvas { border:2px solid #ddd; border-radius:8px; background:var(--canvas-bg); width:100%; height:100%; display:block; }
+
+    .legend { padding:10px 20px; display:flex; gap:18px; align-items:center; justify-content:center; border-top:1px solid #eee; background:#fff; }
+    .legend-item { display:flex; align-items:center; gap:8px; font-size:13px; color:#333; }
+
+    .results { padding:12px 20px 20px 20px; background:#fff; border-top:1px solid #eee; font-size:13px; }
+    .result-row { display:flex; justify-content:space-between; padding:8px 0; }
+    .result-label { font-weight:600; color:#333; }
+    .result-value { font-weight:700; color:#2b6cb0; }
+
+    @media (max-width:900px) { .container { width:100%; } .canvas-container { height:420px; } }
+  </style>
+</head>
+<body>
+  <div class="container" role="main">
+    <header>
+      <h1>Call Option Payoff Simulator</h1>
+      <div class="subtitle">Interactive visualizer for learning call option payoffs.</div>
+    </header>
+
+    <div class="controls" aria-label="Controls">
+      <div class="control">
+        <div><span class="swatch" style="background:var(--strike-color)"></span> Strike price K = $80</div>
+        <div class="fixed-display" style="color:var(--strike-color)">K = $80</div>
+      </div>
+
+      <div class="control">
+        <div><span class="swatch" style="background:var(--premium-color)"></span> Call premium (C)</div>
+        <div class="fixed-display" style="color:var(--premium-color)">- $3.00</div>
+      </div>
+
+      <div class="control">
+        <div><span class="swatch" style="background:var(--stock-color)"></span> Stock price at maturity S(T)</div>
+        <div style="display:flex;justify-content:space-between">
+          <div style="font-size:12px;color:#666">Range: $60 — $150</div>
+          <div id="stockVal" style="font-weight:700;color:var(--stock-color)">$88</div>
+        </div>
+        <input id="stockSlider" type="range" min="60" max="150" step="1" value="88" style="margin-top:8px" />
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="chart-column">
+        <div class="canvas-container">
+          <canvas id="payoffChart" aria-label="Call option payoff chart"></canvas>
+        </div>
+
+        <div class="legend">
+          <div class="legend-item"><div style="width:36px;height:4px;background:var(--strike-color)"></div> Strike (K)</div>
+          <div class="legend-item"><div style="width:36px;height:4px;background:var(--premium-color)"></div> Premium (C)</div>
+          <div class="legend-item"><div style="width:36px;height:4px;background:var(--stock-color)"></div> S(T)</div>
+        </div>
+
+        <div class="results">
+          <div class="result-row"><div class="result-label">Strike Price (K)</div><div class="result-value" id="resultStrike">$80.00</div></div>
+          <div class="result-row"><div class="result-label">Stock Price (S(T))</div><div class="result-value" id="resultStockPrice">$88.00</div></div>
+          <div class="result-row"><div class="result-label">Call Premium (cost)</div><div class="result-value" id="resultPremium">-$3.00</div></div>
+          <div class="result-row"><div class="result-label">Intrinsic value</div><div class="result-value" id="resultPayoff">$8.00</div></div>
+          <div class="result-row"><div class="result-label">Net Profit / Loss</div><div class="result-value" id="resultNetPL">$5.00</div></div>
+          <div class="result-row"><div class="result-label">Breakeven</div><div class="result-value" id="resultBreakeven">$83.00</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const FIXED_K = 80;
+    const FIXED_C = 3;
+    const canvas = document.getElementById('payoffChart');
+    const ctx = canvas.getContext('2d');
+    const stockSlider = document.getElementById('stockSlider');
+    const stockVal = document.getElementById('stockVal');
+    const rStrike = document.getElementById('resultStrike');
+    const rStock = document.getElementById('resultStockPrice');
+    const rPremium = document.getElementById('resultPremium');
+    const rPayoff = document.getElementById('resultPayoff');
+    const rNet = document.getElementById('resultNetPL');
+    const rBE = document.getElementById('resultBreakeven');
+
+    let K = FIXED_K, C = FIXED_C, ST = Number(stockSlider.value);
+
+    function ensureCanvasSize(canvas) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const cssW = Math.max(300, Math.round(rect.width));
+      const cssH = Math.max(150, Math.round(rect.height));
+      const targetW = Math.round(cssW * dpr);
+      const targetH = Math.round(cssH * dpr);
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+      }
+    }
+
+    function calculateAndDraw() {
+      ST = Number(stockSlider.value);
+      const intrinsic = Math.max(ST - K, 0);
+      const netPL = intrinsic - C;
+      const BE = K + C;
+
+      rStrike.textContent = `$${K.toFixed(2)}`;
+      rStock.textContent = `$${ST.toFixed(2)}`;
+      rPremium.textContent = `-$${C.toFixed(2)}`;
+      rPayoff.textContent = `$${intrinsic.toFixed(2)}`;
+      rNet.textContent = `${netPL>=0?'+':''}$${netPL.toFixed(2)}`;
+      rBE.textContent = `$${BE.toFixed(2)}`;
+      draw(K,C,ST,netPL,BE);
+    }
+
+    function draw(K,C,ST,netPL,BE) {
+      ensureCanvasSize(canvas);
+      const cssW = canvas.width / (window.devicePixelRatio || 1);
+      const cssH = canvas.height / (window.devicePixelRatio || 1);
+      ctx.clearRect(0,0,cssW,cssH);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--canvas-bg') || '#fff';
+      ctx.fillRect(0,0,cssW,cssH);
+
+      const margin = 60;
+      const plotW = cssW - margin*2;
+      const plotH = cssH - margin*2;
+
+      const minPrice = Math.min(K*0.6, ST*0.6, BE*0.6);
+      const maxPrice = Math.max(K*1.5, ST*1.3, BE*1.3);
+      const priceRange = Math.max(1e-6, maxPrice - minPrice);
+      const maxProfit = Math.max(maxPrice - K - C, Math.abs(C)*2, 10);
+      const minLoss = -Math.max(C*1.5, 8);
+      const profitRange = Math.max(1e-6, maxProfit - minLoss);
+
+      const priceToX = p => margin + ((p - minPrice) / priceRange) * plotW;
+      const profitToY = v => margin + (1 - ((v - minLoss) / profitRange)) * plotH;
+
+      // grid
+      ctx.save();
+      ctx.strokeStyle = '#e6eef8';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3,4]);
+      for (let i=0;i<=4;i++){
+        const px = priceToX(minPrice + (priceRange * i / 4));
+        ctx.beginPath(); ctx.moveTo(px,margin); ctx.lineTo(px, margin+plotH); ctx.stroke();
+      }
+      for (let i=0;i<=4;i++){
+        const py = profitToY(minLoss + (profitRange * i / 4));
+        ctx.beginPath(); ctx.moveTo(margin, py); ctx.lineTo(margin+plotW, py); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // axes
+      ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(margin, profitToY(0)); ctx.lineTo(margin+plotW, profitToY(0)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(margin, margin); ctx.lineTo(margin, margin+plotH); ctx.stroke();
+
+      // payoff
+      ctx.strokeStyle = '#1a237e'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(priceToX(minPrice), profitToY(-C)); ctx.lineTo(priceToX(K), profitToY(-C));
+      const steps = 120;
+      for (let i=0;i<=steps;i++){
+        const p = K + (i/steps)*(maxPrice-K);
+        const prof = Math.max(0,p-K)-C;
+        ctx.lineTo(priceToX(p), profitToY(prof));
+      }
+      ctx.stroke();
+
+      // overlay green portion
+      if (BE < maxPrice) {
+        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--strike-color') || '#2e7d32';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        for (let i=0;i<=steps;i++){
+          const p = BE + (i/steps)*(maxPrice-BE);
+          const prof = p - K - C;
+          if (i===0) ctx.moveTo(priceToX(p), profitToY(prof)); else ctx.lineTo(priceToX(p), profitToY(prof));
+        }
+        ctx.stroke();
+      }
+
+      // strike vertical
+      ctx.setLineDash([6,6]); ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--strike-color') || '#2e7d32'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(priceToX(K), margin); ctx.lineTo(priceToX(K), profitToY(-C)); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // breakeven line
+      ctx.setLineDash([6,6]); ctx.strokeStyle = '#d32f2f'; ctx.beginPath(); ctx.moveTo(priceToX(BE), margin); ctx.lineTo(priceToX(BE), margin+plotH); ctx.stroke(); ctx.setLineDash([]);
+
+      // ST references
+      ctx.setLineDash([8,6]); ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--stock-color') || '#2196f3'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(margin, profitToY(netPL)); ctx.lineTo(priceToX(ST), profitToY(netPL)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(priceToX(ST), profitToY(netPL)); ctx.lineTo(priceToX(ST), margin+plotH); ctx.stroke(); ctx.setLineDash([]);
+
+      // dot color
+      let dotColor = '#ff9800';
+      if (ST < K) dotColor = '#f44336';
+      else if (netPL >= 0) dotColor = getComputedStyle(document.documentElement).getPropertyValue('--strike-color') || '#2e7d32';
+      ctx.fillStyle = dotColor; ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(priceToX(ST), profitToY(netPL), 8, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+      // labels (note: removed explicit on-chart 'Call Premium' and 'Breakeven price' text as requested)
+      ctx.fillStyle = '#111'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center';
+      ctx.fillText(`Strike Price, K = ${K.toFixed(0)}`, Math.round(canvas.clientWidth/2), 28);
+
+      // small ticks and labels
+      ctx.fillStyle = '#000'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'right';
+      ctx.fillText('$0', margin-10, profitToY(0)+5);
+      ctx.fillStyle = netPL>=0? '#4caf50' : '#f44336';
+      ctx.fillText((netPL>=0?'+':'') + `$${netPL.toFixed(0)}`, margin-10, profitToY(netPL)+5);
+
+      // baseline labels
+      ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center';
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--strike-color') || '#2e7d32'; ctx.fillText(`K=${K.toFixed(0)}`, priceToX(K), margin+plotH+28);
+      ctx.fillStyle = '#d32f2f'; ctx.fillText(`${(K+C).toFixed(0)}`, priceToX(K+C), margin+plotH+28);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--stock-color') || '#2196f3'; ctx.font = 'bold 18px Arial'; ctx.fillText(`${ST.toFixed(0)}`, priceToX(ST), margin+plotH+52);
+
+      ctx.fillStyle = '#666'; ctx.font = '14px Arial'; ctx.textAlign = 'center';
+      ctx.fillText(`Maturity: ${maturity} yr${maturity !==1 ? 's' : ''}`, Math.round(canvas.clientWidth/2), Math.round(canvas.clientHeight)-8);
+    }
+
+    // init
+    function init(){
+      ensureCanvasBitmapSize(canvas);
+      calculateAndDraw();
+    }
+    function ensureCanvasBitmapSize(c){ const dpr=window.devicePixelRatio||1; const rect=c.getBoundingClientRect(); const cssW=Math.round(rect.width)||300; const cssH=Math.round(rect.height)||150; const tW=Math.round(cssW*dpr); const tH=Math.round(cssH*dpr); if(c.width!==tW||c.height!==tH){ c.width=tW; c.height=tH; ctx.setTransform(dpr,0,0,dpr,0,0); } }
+    stockSlider.addEventListener('input',()=>{ ST=Number(stockSlider.value); stockVal.textContent=`$${ST}`; calculateAndDraw(); });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+  </script>
+</body>
+</html>
