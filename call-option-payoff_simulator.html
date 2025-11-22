@@ -160,9 +160,10 @@
       const plotW = cssW - margin*2;
       const plotH = cssH - margin*2;
 
-      const minPrice = Math.min(K*0.6, ST*0.6, BE*0.6);
-      const maxPrice = Math.max(K*1.5, ST*1.3, BE*1.3);
-      const priceRange = Math.max(1e-6, maxPrice - minPrice);
+      // Use fixed price range so strike and breakeven don't appear to move
+      const minPrice = 50;  // Fixed minimum price
+      const maxPrice = 160; // Fixed maximum price  
+      const priceRange = maxPrice - minPrice;
       const maxProfit = Math.max(maxPrice - K - C, Math.abs(C)*2, 10);
       const minLoss = -Math.max(C*1.5, 8);
       const profitRange = Math.max(1e-6, maxProfit - minLoss);
@@ -252,7 +253,8 @@
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--stock-color') || '#2196f3'; ctx.font = 'bold 18px Arial'; ctx.fillText(`${ST.toFixed(0)}`, priceToX(ST), margin+plotH+52);
 
       ctx.fillStyle = '#666'; ctx.font = '14px Arial'; ctx.textAlign = 'center';
-      ctx.fillText(`Maturity: ${maturity} yr${maturity !==1 ? 's' : ''}`, Math.round(canvas.clientWidth/2), Math.round(canvas.clientHeight)-8);
+      // Remove the undefined maturity reference
+      ctx.fillText('Call Option Payoff Diagram', Math.round(canvas.clientWidth/2), Math.round(canvas.clientHeight)-8);
     }
 
     // init
