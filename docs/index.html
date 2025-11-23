@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Call Option Payoff Simulator</title>
+  <title>Options Payoff Simulator</title>
   <style>
     :root{
       --strike-color: #2e7d32;
@@ -11,6 +11,8 @@
       --stock-color: #2196f3;
       --line-default: #1a237e;
       --canvas-bg: #ffffff;
+      --call-color: #1976d2;
+      --put-color: #d32f2f;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -31,9 +33,15 @@
     .subtitle { color:#666; font-size:13px; }
 
     .controls { display:flex; gap:12px; align-items:center; padding:12px 18px; background:#fbfdff; border-bottom:1px solid #eee; flex-wrap:wrap; }
-    .control { display:flex; flex-direction:column; gap:6px; padding:6px 8px; border-radius:8px; border:1px solid #e6eef8; min-width:240px; background:#fff; }
+    .control { display:flex; flex-direction:column; gap:6px; padding:6px 8px; border-radius:8px; border:1px solid #e6eef8; min-width:180px; background:#fff; }
     .swatch { width:14px; height:14px; border-radius:3px; display:inline-block; margin-right:8px; }
     .fixed-display { font-size:14px; font-weight:700; padding:6px 8px; background:#fafafa; border-radius:6px; color:#111; border:1px solid #eee; }
+    
+    .option-selector { margin-bottom: 12px; }
+    .option-type-buttons { display: flex; gap: 8px; margin-top: 8px; }
+    .option-type-btn { padding: 8px 16px; border: 2px solid #ddd; border-radius: 6px; background: white; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    .option-type-btn.active { background: #2196f3; color: white; border-color: #2196f3; }
+    .option-type-btn:hover { border-color: #2196f3; }
 
     .main { display:flex; gap:0; }
     .chart-column { flex:1 1 auto; min-height:560px; display:flex; flex-direction:column; }
@@ -54,48 +62,60 @@
 <body>
   <div class="container" role="main">
     <header>
-      <h1>Call Option Payoff Simulator</h1>
-      <div class="subtitle">Interactive visualizer for learning call option payoffs.</div>
+      <h1>Options Payoff Simulator</h1>
+      <div class="subtitle">Interactive visualizer for learning call and put option payoffs.</div>
     </header>
 
     <div class="controls" aria-label="Controls">
+      <div class="control option-selector">
+        <div>Option Type</div>
+        <div class="option-type-buttons">
+          <button id="callBtn" class="option-type-btn active">Call Option</button>
+          <button id="putBtn" class="option-type-btn">Put Option</button>
+        </div>
+      </div>
+
       <div class="control">
         <div><span class="swatch" style="background:var(--strike-color)"></span> Strike price K = $80</div>
         <div class="fixed-display" style="color:var(--strike-color)">K = $80</div>
       </div>
 
       <div class="control">
-        <div><span class="swatch" style="background:var(--premium-color)"></span> Call premium (C)</div>
-        <div class="fixed-display" style="color:var(--premium-color)">- $3.00</div>
+        <div><span class="swatch" style="background:var(--premium-color)"></span> <span id="premiumLabel">Call premium (C)</span></div>
+        <div class="fixed-display" style="color:var(--premium-color)" id="premiumDisplay">- $3.00</div>
       </div>
 
       <div class="control">
-        <div><span class="swatch" style="background:var(--stock-color)"></span> Stock price at maturity S(T)</div>
+        <div><span class="swatch" style="background:var(--stock-color)"></span> Stock price at maturity S<sub>T</sub></div>
         <div style="display:flex;justify-content:space-between">
           <div style="font-size:12px;color:#666">Range: $60 — $150</div>
           <div id="stockVal" style="font-weight:700;color:var(--stock-color)">$88</div>
         </div>
         <input id="stockSlider" type="range" min="60" max="150" step="1" value="88" style="margin-top:8px" />
+        <div style="font-size:12px;color:#666;margin-top:4px">Initial price S<sub>0</sub> = $80</div>
       </div>
     </div>
 
     <div class="main">
       <div class="chart-column">
         <div class="canvas-container">
-          <canvas id="payoffChart" aria-label="Call option payoff chart"></canvas>
+          <canvas id="payoffChart" aria-label="Options payoff chart"></canvas>
         </div>
 
         <div class="legend">
           <div class="legend-item"><div style="width:36px;height:4px;background:var(--strike-color)"></div> Strike (K)</div>
-          <div class="legend-item"><div style="width:36px;height:4px;background:var(--premium-color)"></div> Premium (C)</div>
-          <div class="legend-item"><div style="width:36px;height:4px;background:var(--stock-color)"></div> S(T)</div>
+          <div class="legend-item"><div style="width:36px;height:4px;background:var(--premium-color)"></div> Premium</div>
+          <div class="legend-item"><div style="width:36px;height:4px;background:var(--stock-color)"></div> S<sub>T</sub></div>
         </div>
 
         <div class="results">
+          <div class="result-row"><div class="result-label">Option Type</div><div class="result-value" id="resultOptionType">Call</div></div>
+          <div class="result-row"><div class="result-label">Initial Stock Price (S<sub>0</sub>)</div><div class="result-value">$80.00</div></div>
           <div class="result-row"><div class="result-label">Strike Price (K)</div><div class="result-value" id="resultStrike">$80.00</div></div>
-          <div class="result-row"><div class="result-label">Stock Price (S(T))</div><div class="result-value" id="resultStockPrice">$88.00</div></div>
-          <div class="result-row"><div class="result-label">Call Premium (cost)</div><div class="result-value" id="resultPremium">-$3.00</div></div>
-          <div class="result-row"><div class="result-label">Intrinsic value</div><div class="result-value" id="resultPayoff">$8.00</div></div>
+          <div class="result-row"><div class="result-label">Stock Price (S<sub>T</sub>)</div><div class="result-value" id="resultStockPrice">$88.00</div></div>
+          <div class="result-row"><div class="result-label" id="resultPremiumLabel">Call Premium (cost)</div><div class="result-value" id="resultPremium">-$3.00</div></div>
+          <div class="result-row"><div class="result-label">Intrinsic Value <span id="intrinsicFormula" style="font-size:11px;color:#666;">[max(S<sub>T</sub>-K,0)]</span></div><div class="result-value" id="resultPayoff">$8.00</div></div>
+          <div class="result-row"><div class="result-label">Time Value <span style="font-size:11px;color:#666;">[Premium - Intrinsic]</span></div><div class="result-value" id="resultTimeValue">$0.00</div></div>
           <div class="result-row"><div class="result-label">Net Profit / Loss</div><div class="result-value" id="resultNetPL">$5.00</div></div>
           <div class="result-row"><div class="result-label">Breakeven</div><div class="result-value" id="resultBreakeven">$83.00</div></div>
         </div>
@@ -105,19 +125,42 @@
 
   <script>
     const FIXED_K = 80;
-    const FIXED_C = 3;
+    const FIXED_CALL_C = 3;
+    const FIXED_PUT_C = 3;
+    const INITIAL_STOCK_PRICE = 80; // S₀ - stock price when option was purchased
     const canvas = document.getElementById('payoffChart');
     const ctx = canvas.getContext('2d');
     const stockSlider = document.getElementById('stockSlider');
     const stockVal = document.getElementById('stockVal');
+    const callBtn = document.getElementById('callBtn');
+    const putBtn = document.getElementById('putBtn');
+    const premiumLabel = document.getElementById('premiumLabel');
+    const premiumDisplay = document.getElementById('premiumDisplay');
+    const rOptionType = document.getElementById('resultOptionType');
     const rStrike = document.getElementById('resultStrike');
     const rStock = document.getElementById('resultStockPrice');
     const rPremium = document.getElementById('resultPremium');
+    const rPremiumLabel = document.getElementById('resultPremiumLabel');
     const rPayoff = document.getElementById('resultPayoff');
+    const rTimeValue = document.getElementById('resultTimeValue');
     const rNet = document.getElementById('resultNetPL');
     const rBE = document.getElementById('resultBreakeven');
+    const intrinsicFormula = document.getElementById('intrinsicFormula');
 
-    let K = FIXED_K, C = FIXED_C, ST = Number(stockSlider.value);
+    let K = FIXED_K, ST = Number(stockSlider.value);
+    let isCall = true;
+
+    function getCurrentPremium() {
+      return isCall ? FIXED_CALL_C : FIXED_PUT_C;
+    }
+
+    function calculateIntrinsic(ST, K, isCall) {
+      return isCall ? Math.max(ST - K, 0) : Math.max(K - ST, 0);
+    }
+
+    function calculateBreakeven(K, premium, isCall) {
+      return isCall ? K + premium : K - premium;
+    }
 
     function ensureCanvasSize(canvas) {
       const dpr = window.devicePixelRatio || 1;
@@ -133,22 +176,48 @@
       }
     }
 
+    function updateLabels() {
+      const optionType = isCall ? 'Call' : 'Put';
+      const premium = getCurrentPremium();
+      
+      premiumLabel.textContent = `${optionType} premium (${isCall ? 'C' : 'P'})`;
+      premiumDisplay.textContent = `- $${premium.toFixed(2)}`;
+      rOptionType.textContent = optionType;
+      rPremiumLabel.textContent = `${optionType} Premium (cost)`;
+      
+      // Update intrinsic value formula based on option type
+      if (isCall) {
+        intrinsicFormula.innerHTML = '[max(S<sub>T</sub>-K,0)]';
+      } else {
+        intrinsicFormula.innerHTML = '[max(K-S<sub>T</sub>,0)]';
+      }
+    }
+
     function calculateAndDraw() {
       ST = Number(stockSlider.value);
-      const intrinsic = Math.max(ST - K, 0);
+      const C = getCurrentPremium();
+      const intrinsic = calculateIntrinsic(ST, K, isCall);
+      
+      // At expiration, time value is 0 (all time value has decayed)
+      // But we can show what the time value was when purchased
+      // Time Value = Premium - Intrinsic Value at purchase
+      const intrinsicAtPurchase = calculateIntrinsic(INITIAL_STOCK_PRICE, K, isCall);
+      const timeValueAtPurchase = C - intrinsicAtPurchase;
+      
       const netPL = intrinsic - C;
-      const BE = K + C;
+      const BE = calculateBreakeven(K, C, isCall);
 
       rStrike.textContent = `$${K.toFixed(2)}`;
       rStock.textContent = `$${ST.toFixed(2)}`;
       rPremium.textContent = `-$${C.toFixed(2)}`;
       rPayoff.textContent = `$${intrinsic.toFixed(2)}`;
+      rTimeValue.textContent = `$${timeValueAtPurchase.toFixed(2)}`;
       rNet.textContent = `${netPL>=0?'+':''}$${netPL.toFixed(2)}`;
       rBE.textContent = `$${BE.toFixed(2)}`;
-      draw(K,C,ST,netPL,BE);
+      draw(K, C, ST, netPL, BE, isCall);
     }
 
-    function draw(K,C,ST,netPL,BE) {
+    function draw(K, C, ST, netPL, BE, isCall) {
       ensureCanvasSize(canvas);
       const cssW = canvas.width / (window.devicePixelRatio || 1);
       const cssH = canvas.height / (window.devicePixelRatio || 1);
@@ -164,7 +233,11 @@
       const minPrice = 50;  // Fixed minimum price
       const maxPrice = 160; // Fixed maximum price  
       const priceRange = maxPrice - minPrice;
-      const maxProfit = Math.max(maxPrice - K - C, Math.abs(C)*2, 10);
+      
+      // Adjust profit range for puts (they can make more profit when stock goes down)
+      const maxCallProfit = maxPrice - K - C;
+      const maxPutProfit = K - minPrice - C;
+      const maxProfit = Math.max(maxCallProfit, maxPutProfit, 10);
       const minLoss = -Math.max(C*1.5, 8);
       const profitRange = Math.max(1e-6, maxProfit - minLoss);
 
@@ -187,83 +260,237 @@
       ctx.setLineDash([]);
       ctx.restore();
 
-      // axes
-      ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 3;
+      // axes - changed to black color
+      ctx.strokeStyle = '#000000'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(margin, profitToY(0)); ctx.lineTo(margin+plotW, profitToY(0)); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(margin, margin); ctx.lineTo(margin, margin+plotH); ctx.stroke();
 
-      // payoff
-      ctx.strokeStyle = '#1a237e'; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.moveTo(priceToX(minPrice), profitToY(-C)); ctx.lineTo(priceToX(K), profitToY(-C));
+      // payoff line
+      const optionColor = isCall ? '#1976d2' : '#d32f2f';
+      ctx.strokeStyle = optionColor; ctx.lineWidth = 4;
+      ctx.beginPath();
+      
       const steps = 120;
       for (let i=0;i<=steps;i++){
-        const p = K + (i/steps)*(maxPrice-K);
-        const prof = Math.max(0,p-K)-C;
-        ctx.lineTo(priceToX(p), profitToY(prof));
+        const p = minPrice + (i/steps)*(maxPrice-minPrice);
+        let prof;
+        if (isCall) {
+          prof = Math.max(0, p-K) - C;
+        } else {
+          prof = Math.max(0, K-p) - C;
+        }
+        if (i===0) ctx.moveTo(priceToX(p), profitToY(prof)); 
+        else ctx.lineTo(priceToX(p), profitToY(prof));
       }
       ctx.stroke();
 
-      // overlay green portion
-      if (BE < maxPrice) {
-        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--strike-color') || '#2e7d32';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        for (let i=0;i<=steps;i++){
-          const p = BE + (i/steps)*(maxPrice-BE);
-          const prof = p - K - C;
-          if (i===0) ctx.moveTo(priceToX(p), profitToY(prof)); else ctx.lineTo(priceToX(p), profitToY(prof));
+      // overlay green portion for profitable region
+      const profitColor = getComputedStyle(document.documentElement).getPropertyValue('--strike-color') || '#2e7d32';
+      ctx.strokeStyle = profitColor; ctx.lineWidth = 4;
+      ctx.beginPath();
+      
+      let profitStart = false;
+      for (let i=0;i<=steps;i++){
+        const p = minPrice + (i/steps)*(maxPrice-minPrice);
+        let prof;
+        if (isCall) {
+          prof = Math.max(0, p-K) - C;
+        } else {
+          prof = Math.max(0, K-p) - C;
         }
-        ctx.stroke();
+        
+        if (prof > 0) {
+          if (!profitStart) {
+            ctx.moveTo(priceToX(p), profitToY(prof));
+            profitStart = true;
+          } else {
+            ctx.lineTo(priceToX(p), profitToY(prof));
+          }
+        } else {
+          profitStart = false;
+        }
       }
+      ctx.stroke();
 
-      // strike vertical
-      ctx.setLineDash([6,6]); ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--strike-color') || '#2e7d32'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(priceToX(K), margin); ctx.lineTo(priceToX(K), profitToY(-C)); ctx.stroke();
+      // strike vertical line
+      ctx.setLineDash([6,6]); 
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--strike-color') || '#2e7d32'; 
+      ctx.lineWidth = 2;
+      ctx.beginPath(); 
+      ctx.moveTo(priceToX(K), margin); 
+      ctx.lineTo(priceToX(K), margin+plotH); 
+      ctx.stroke();
       ctx.setLineDash([]);
 
       // breakeven line
-      ctx.setLineDash([6,6]); ctx.strokeStyle = '#d32f2f'; ctx.beginPath(); ctx.moveTo(priceToX(BE), margin); ctx.lineTo(priceToX(BE), margin+plotH); ctx.stroke(); ctx.setLineDash([]);
+      ctx.setLineDash([6,6]); 
+      ctx.strokeStyle = '#ff9800'; 
+      ctx.beginPath(); 
+      ctx.moveTo(priceToX(BE), margin); 
+      ctx.lineTo(priceToX(BE), margin+plotH); 
+      ctx.stroke(); 
+      ctx.setLineDash([]);
 
       // ST references
-      ctx.setLineDash([8,6]); ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--stock-color') || '#2196f3'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(margin, profitToY(netPL)); ctx.lineTo(priceToX(ST), profitToY(netPL)); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(priceToX(ST), profitToY(netPL)); ctx.lineTo(priceToX(ST), margin+plotH); ctx.stroke(); ctx.setLineDash([]);
+      ctx.setLineDash([8,6]); 
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--stock-color') || '#2196f3'; 
+      ctx.lineWidth = 2;
+      ctx.beginPath(); 
+      ctx.moveTo(margin, profitToY(netPL)); 
+      ctx.lineTo(priceToX(ST), profitToY(netPL)); 
+      ctx.stroke();
+      ctx.beginPath(); 
+      ctx.moveTo(priceToX(ST), profitToY(netPL)); 
+      ctx.lineTo(priceToX(ST), margin+plotH); 
+      ctx.stroke(); 
+      ctx.setLineDash([]);
 
-      // dot color
+      // dot color based on profit/loss
       let dotColor = '#ff9800';
-      if (ST < K) dotColor = '#f44336';
-      else if (netPL >= 0) dotColor = getComputedStyle(document.documentElement).getPropertyValue('--strike-color') || '#2e7d32';
+      if (isCall && ST < K) dotColor = '#f44336';
+      else if (!isCall && ST > K) dotColor = '#f44336';
+      else if (netPL >= 0) dotColor = profitColor;
+      
       ctx.fillStyle = dotColor; ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(priceToX(ST), profitToY(netPL), 8, 0, Math.PI*2); ctx.fill(); ctx.stroke();
 
-      // labels (note: removed explicit on-chart 'Call Premium' and 'Breakeven price' text as requested)
+      // Dynamic ITM/OTM/ATM label that moves with the dot
+      // ITM/OTM is based on intrinsic value, not profitability
+      let moneyStatus = '';
+      if (ST === K) {
+        moneyStatus = 'At The Money (ATM)';
+      } else if (isCall && ST > K) {
+        moneyStatus = 'In The Money (ITM)';
+      } else if (isCall && ST < K) {
+        moneyStatus = 'Out of Money (OTM)';
+      } else if (!isCall && ST < K) {
+        moneyStatus = 'In The Money (ITM)';
+      } else if (!isCall && ST > K) {
+        moneyStatus = 'Out of Money (OTM)';
+      }
+      
+      // Position the label above the dot, but ensure it stays within canvas bounds
+      const labelY = Math.max(profitToY(netPL) - 15, 30);
+      const labelX = priceToX(ST);
+      
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.font = 'bold 12px Arial';
+      const textWidth = ctx.measureText(moneyStatus).width;
+      const textHeight = 16;
+      const padding = 4;
+      
+      // Adjust label position if it would go off screen
+      let adjustedLabelX = labelX - textWidth/2;
+      if (adjustedLabelX < margin) adjustedLabelX = margin;
+      if (adjustedLabelX + textWidth > margin + plotW) adjustedLabelX = margin + plotW - textWidth;
+      
+      // Draw label background
+      ctx.beginPath();
+      // Use simple rect if roundRect is not available
+      if (ctx.roundRect) {
+        ctx.roundRect(adjustedLabelX - padding, labelY - textHeight, textWidth + padding*2, textHeight + padding, 3);
+      } else {
+        ctx.rect(adjustedLabelX - padding, labelY - textHeight, textWidth + padding*2, textHeight + padding);
+      }
+      ctx.fill();
+      ctx.stroke();
+      
+      // Draw label text
+      ctx.fillStyle = '#333';
+      ctx.textAlign = 'left';
+      ctx.fillText(moneyStatus, adjustedLabelX, labelY - 4);
+
+      // labels
       ctx.fillStyle = '#111'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center';
-      ctx.fillText(`Strike Price, K = ${K.toFixed(0)}`, Math.round(canvas.clientWidth/2), 28);
+      ctx.fillText(`${isCall ? 'Call' : 'Put'} Option - Strike K = ${K.toFixed(0)}`, Math.round(cssW/2), 28);
 
       // small ticks and labels
       ctx.fillStyle = '#000'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'right';
       ctx.fillText('$0', margin-10, profitToY(0)+5);
       ctx.fillStyle = netPL>=0? '#4caf50' : '#f44336';
       ctx.fillText((netPL>=0?'+':'') + `$${netPL.toFixed(0)}`, margin-10, profitToY(netPL)+5);
+      
+      // Show premium cost on chart
+      ctx.fillStyle = '#9c27b0'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'right';
+      ctx.fillText(`-$${C.toFixed(0)}`, margin-10, profitToY(-C)+5);
+      
+      // Add Y-axis label
+      ctx.save();
+      ctx.translate(20, margin + plotH/2);
+      ctx.rotate(-Math.PI/2);
+      ctx.fillStyle = '#333'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center';
+      ctx.fillText('Payoff ($)', 0, 0);
+      ctx.restore();
 
-      // baseline labels
+      // baseline labels - improved spacing to prevent overlap
       ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center';
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--strike-color') || '#2e7d32'; ctx.fillText(`K=${K.toFixed(0)}`, priceToX(K), margin+plotH+28);
-      ctx.fillStyle = '#d32f2f'; ctx.fillText(`${(K+C).toFixed(0)}`, priceToX(K+C), margin+plotH+28);
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--stock-color') || '#2196f3'; ctx.font = 'bold 18px Arial'; ctx.fillText(`${ST.toFixed(0)}`, priceToX(ST), margin+plotH+52);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--strike-color') || '#2e7d32'; 
+      ctx.fillText(`K=${K.toFixed(0)}`, priceToX(K), margin+plotH+28);
+      
+      // Position breakeven label to avoid overlap with strike label
+      ctx.fillStyle = '#ff9800'; 
+      const beXPos = priceToX(BE);
+      const kXPos = priceToX(K);
+      let beYOffset = 28;
+      
+      // If breakeven is too close to strike, offset the label vertically
+      if (Math.abs(beXPos - kXPos) < 40) {
+        beYOffset = 44; // Move breakeven label down
+      }
+      
+      ctx.fillText(`BE=${BE.toFixed(0)}`, beXPos, margin+plotH+beYOffset);
+      
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--stock-color') || '#2196f3'; 
+      ctx.font = 'bold 18px Arial'; 
+      ctx.fillText(`${ST.toFixed(0)}`, priceToX(ST), margin+plotH+52);
+
+      // Add X-axis label
+      ctx.fillStyle = '#333'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center';
+      ctx.fillText('Stock Price at Expiration (S', margin + plotW/2 - 10, margin+plotH+75);
+      
+      // Add subscript T for ST
+      ctx.font = 'bold 12px Arial';
+      ctx.fillText('T', margin + plotW/2 + 45, margin+plotH+78);
+      
+      // Continue with closing parenthesis and dollar sign
+      ctx.font = 'bold 16px Arial';
+      ctx.fillText(') ($)', margin + plotW/2 + 55, margin+plotH+75);
 
       ctx.fillStyle = '#666'; ctx.font = '14px Arial'; ctx.textAlign = 'center';
-      // Remove the undefined maturity reference
-      ctx.fillText('Call Option Payoff Diagram', Math.round(canvas.clientWidth/2), Math.round(canvas.clientHeight)-8);
+      ctx.fillText('Options Payoff Diagram', Math.round(cssW/2), Math.round(cssH)-8);
+    }
+
+    function switchToCall() {
+      isCall = true;
+      callBtn.classList.add('active');
+      putBtn.classList.remove('active');
+      updateLabels();
+      calculateAndDraw();
+    }
+
+    function switchToPut() {
+      isCall = false;
+      putBtn.classList.add('active');
+      callBtn.classList.remove('active');
+      updateLabels();
+      calculateAndDraw();
     }
 
     // init
     function init(){
       ensureCanvasBitmapSize(canvas);
+      updateLabels();
       calculateAndDraw();
     }
     function ensureCanvasBitmapSize(c){ const dpr=window.devicePixelRatio||1; const rect=c.getBoundingClientRect(); const cssW=Math.round(rect.width)||300; const cssH=Math.round(rect.height)||150; const tW=Math.round(cssW*dpr); const tH=Math.round(cssH*dpr); if(c.width!==tW||c.height!==tH){ c.width=tW; c.height=tH; ctx.setTransform(dpr,0,0,dpr,0,0); } }
+    
+    // Event listeners
     stockSlider.addEventListener('input',()=>{ ST=Number(stockSlider.value); stockVal.textContent=`$${ST}`; calculateAndDraw(); });
+    callBtn.addEventListener('click', switchToCall);
+    putBtn.addEventListener('click', switchToPut);
+    
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
   </script>
 </body>
