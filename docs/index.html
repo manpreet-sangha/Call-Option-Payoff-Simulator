@@ -66,12 +66,13 @@
       <div class="subtitle">Interactive visualizer for learning call and put option payoffs.</div>
     </header>
 
-    <div class="controls" aria-label="Controls">
-      <div class="control option-selector">
+    <div class="controls" aria-label="Controls">      <div class="control option-selector">
         <div>Option Type</div>
         <div class="option-type-buttons">
-          <button id="callBtn" class="option-type-btn active">Call Option</button>
-          <button id="putBtn" class="option-type-btn">Put Option</button>
+          <button id="longCallBtn" class="option-type-btn active">Long Call</button>
+          <button id="longPutBtn" class="option-type-btn">Long Put</button>
+          <button id="shortCallBtn" class="option-type-btn">Short Call</button>
+          <button id="shortPutBtn" class="option-type-btn">Short Put</button>
         </div>
       </div>
 
@@ -123,8 +124,7 @@
     </div>
   </div>
 
-  <script>
-    const FIXED_K = 80;
+  <script>    const FIXED_K = 80;
     const FIXED_CALL_C = 3;
     const FIXED_PUT_C = 3;
     const INITIAL_STOCK_PRICE = 80; // S₀ - stock price when option was purchased
@@ -132,8 +132,10 @@
     const ctx = canvas.getContext('2d');
     const stockSlider = document.getElementById('stockSlider');
     const stockVal = document.getElementById('stockVal');
-    const callBtn = document.getElementById('callBtn');
-    const putBtn = document.getElementById('putBtn');
+    const longCallBtn = document.getElementById('longCallBtn');
+    const longPutBtn = document.getElementById('longPutBtn');
+    const shortCallBtn = document.getElementById('shortCallBtn');
+    const shortPutBtn = document.getElementById('shortPutBtn');
     const premiumLabel = document.getElementById('premiumLabel');
     const premiumDisplay = document.getElementById('premiumDisplay');
     const rOptionType = document.getElementById('resultOptionType');
@@ -149,6 +151,7 @@
 
     let K = FIXED_K, ST = Number(stockSlider.value);
     let isCall = true;
+    let isShort = false;
 
     function getCurrentPremium() {
       return isCall ? FIXED_CALL_C : FIXED_PUT_C;
@@ -174,16 +177,15 @@
         canvas.height = targetH;
         ctx.setTransform(dpr,0,0,dpr,0,0);
       }
-    }
-
-    function updateLabels() {
+    }    function updateLabels() {
+      const positionType = isShort ? 'Short' : 'Long';
       const optionType = isCall ? 'Call' : 'Put';
       const premium = getCurrentPremium();
       
-      premiumLabel.textContent = `${optionType} premium (${isCall ? 'C' : 'P'})`;
-      premiumDisplay.textContent = `- $${premium.toFixed(2)}`;
-      rOptionType.textContent = optionType;
-      rPremiumLabel.textContent = `${optionType} Premium (cost)`;
+      premiumLabel.textContent = `${positionType} ${optionType} premium (${isCall ? 'C' : 'P'})`;
+      premiumDisplay.textContent = `${isShort ? '+ ' : '- '}$${premium.toFixed(2)}`;
+      rOptionType.textContent = `${positionType} ${optionType}`;
+      rPremiumLabel.textContent = `${positionType} ${optionType} Premium (${isShort ? 'received' : 'cost'})`;
       
       // Update intrinsic value formula based on option type
       if (isCall) {
@@ -191,9 +193,7 @@
       } else {
         intrinsicFormula.innerHTML = '[max(K-S<sub>T</sub>,0)]';
       }
-    }
-
-    function calculateAndDraw() {
+    }    function calculateAndDraw() {
       ST = Number(stockSlider.value);
       const C = getCurrentPremium();
       const intrinsic = calculateIntrinsic(ST, K, isCall);
@@ -204,20 +204,19 @@
       const intrinsicAtPurchase = calculateIntrinsic(INITIAL_STOCK_PRICE, K, isCall);
       const timeValueAtPurchase = C - intrinsicAtPurchase;
       
-      const netPL = intrinsic - C;
+      // For short positions, the P&L is inverted
+      const netPL = isShort ? C - intrinsic : intrinsic - C;
       const BE = calculateBreakeven(K, C, isCall);
 
       rStrike.textContent = `$${K.toFixed(2)}`;
       rStock.textContent = `$${ST.toFixed(2)}`;
-      rPremium.textContent = `-$${C.toFixed(2)}`;
+      rPremium.textContent = `${isShort ? '+' : '-'}$${C.toFixed(2)}`;
       rPayoff.textContent = `$${intrinsic.toFixed(2)}`;
       rTimeValue.textContent = `$${timeValueAtPurchase.toFixed(2)}`;
       rNet.textContent = `${netPL>=0?'+':''}$${netPL.toFixed(2)}`;
       rBE.textContent = `$${BE.toFixed(2)}`;
-      draw(K, C, ST, netPL, BE, isCall);
-    }
-
-    function draw(K, C, ST, netPL, BE, isCall) {
+      draw(K, C, ST, netPL, BE, isCall, isShort);
+    }    function draw(K, C, ST, netPL, BE, isCall, isShort) {
       ensureCanvasSize(canvas);
       const cssW = canvas.width / (window.devicePixelRatio || 1);
       const cssH = canvas.height / (window.devicePixelRatio || 1);
@@ -234,11 +233,11 @@
       const maxPrice = 160; // Fixed maximum price  
       const priceRange = maxPrice - minPrice;
       
-      // Adjust profit range for puts (they can make more profit when stock goes down)
-      const maxCallProfit = maxPrice - K - C;
-      const maxPutProfit = K - minPrice - C;
+      // Adjust profit range for puts and short positions (they can make more profit when stock goes down)
+      const maxCallProfit = isShort ? C : maxPrice - K - C;
+      const maxPutProfit = isShort ? C : K - minPrice - C;
       const maxProfit = Math.max(maxCallProfit, maxPutProfit, 10);
-      const minLoss = -Math.max(C*1.5, 8);
+      const minLoss = isShort ? -(maxPrice - K - C) : -Math.max(C*1.5, 8);
       const profitRange = Math.max(1e-6, maxProfit - minLoss);
 
       const priceToX = p => margin + ((p - minPrice) / priceRange) * plotW;
@@ -265,7 +264,7 @@
       ctx.beginPath(); ctx.moveTo(margin, profitToY(0)); ctx.lineTo(margin+plotW, profitToY(0)); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(margin, margin); ctx.lineTo(margin, margin+plotH); ctx.stroke();
 
-      // payoff line
+      // payoff line - inverted for short positions
       const optionColor = isCall ? '#1976d2' : '#d32f2f';
       ctx.strokeStyle = optionColor; ctx.lineWidth = 4;
       ctx.beginPath();
@@ -274,10 +273,18 @@
       for (let i=0;i<=steps;i++){
         const p = minPrice + (i/steps)*(maxPrice-minPrice);
         let prof;
-        if (isCall) {
-          prof = Math.max(0, p-K) - C;
+        if (isShort) {
+          if (isCall) {
+            prof = C - Math.max(0, p-K);
+          } else {
+            prof = C - Math.max(0, K-p);
+          }
         } else {
-          prof = Math.max(0, K-p) - C;
+          if (isCall) {
+            prof = Math.max(0, p-K) - C;
+          } else {
+            prof = Math.max(0, K-p) - C;
+          }
         }
         if (i===0) ctx.moveTo(priceToX(p), profitToY(prof)); 
         else ctx.lineTo(priceToX(p), profitToY(prof));
@@ -293,10 +300,18 @@
       for (let i=0;i<=steps;i++){
         const p = minPrice + (i/steps)*(maxPrice-minPrice);
         let prof;
-        if (isCall) {
-          prof = Math.max(0, p-K) - C;
+        if (isShort) {
+          if (isCall) {
+            prof = C - Math.max(0, p-K);
+          } else {
+            prof = C - Math.max(0, K-p);
+          }
         } else {
-          prof = Math.max(0, K-p) - C;
+          if (isCall) {
+            prof = Math.max(0, p-K) - C;
+          } else {
+            prof = Math.max(0, K-p) - C;
+          }
         }
         
         if (prof > 0) {
@@ -347,9 +362,15 @@
 
       // dot color based on profit/loss
       let dotColor = '#ff9800';
-      if (isCall && ST < K) dotColor = '#f44336';
-      else if (!isCall && ST > K) dotColor = '#f44336';
-      else if (netPL >= 0) dotColor = profitColor;
+      if (isShort) {
+        if (isCall && ST > K) dotColor = '#f44336';
+        else if (!isCall && ST < K) dotColor = '#f44336';
+        else if (netPL >= 0) dotColor = profitColor;
+      } else {
+        if (isCall && ST < K) dotColor = '#f44336';
+        else if (!isCall && ST > K) dotColor = '#f44336';
+        else if (netPL >= 0) dotColor = profitColor;
+      }
       
       ctx.fillStyle = dotColor; ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(priceToX(ST), profitToY(netPL), 8, 0, Math.PI*2); ctx.fill(); ctx.stroke();
@@ -404,7 +425,7 @@
 
       // labels
       ctx.fillStyle = '#111'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center';
-      ctx.fillText(`${isCall ? 'Call' : 'Put'} Option - Strike K = ${K.toFixed(0)}`, Math.round(cssW/2), 28);
+      ctx.fillText(`${isShort ? 'Short' : 'Long'} ${isCall ? 'Call' : 'Put'} Option - Strike K = ${K.toFixed(0)}`, Math.round(cssW/2), 28);
 
       // small ticks and labels
       ctx.fillStyle = '#000'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'right';
@@ -412,9 +433,13 @@
       ctx.fillStyle = netPL>=0? '#4caf50' : '#f44336';
       ctx.fillText((netPL>=0?'+':'') + `$${netPL.toFixed(0)}`, margin-10, profitToY(netPL)+5);
       
-      // Show premium cost on chart
+      // Show premium on chart (received for short, cost for long)
       ctx.fillStyle = '#9c27b0'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'right';
-      ctx.fillText(`-$${C.toFixed(0)}`, margin-10, profitToY(-C)+5);
+      if (isShort) {
+        ctx.fillText(`+$${C.toFixed(0)}`, margin-10, profitToY(C)+5);
+      } else {
+        ctx.fillText(`-$${C.toFixed(0)}`, margin-10, profitToY(-C)+5);
+      }
       
       // Add Y-axis label
       ctx.save();
@@ -460,20 +485,46 @@
 
       ctx.fillStyle = '#666'; ctx.font = '14px Arial'; ctx.textAlign = 'center';
       ctx.fillText('Options Payoff Diagram', Math.round(cssW/2), Math.round(cssH)-8);
-    }
-
-    function switchToCall() {
+    }    function switchToLongCall() {
       isCall = true;
-      callBtn.classList.add('active');
-      putBtn.classList.remove('active');
+      isShort = false;
+      longCallBtn.classList.add('active');
+      longPutBtn.classList.remove('active');
+      shortCallBtn.classList.remove('active');
+      shortPutBtn.classList.remove('active');
       updateLabels();
       calculateAndDraw();
     }
 
-    function switchToPut() {
+    function switchToLongPut() {
       isCall = false;
-      putBtn.classList.add('active');
-      callBtn.classList.remove('active');
+      isShort = false;
+      longPutBtn.classList.add('active');
+      longCallBtn.classList.remove('active');
+      shortCallBtn.classList.remove('active');
+      shortPutBtn.classList.remove('active');
+      updateLabels();
+      calculateAndDraw();
+    }
+
+    function switchToShortCall() {
+      isCall = true;
+      isShort = true;
+      shortCallBtn.classList.add('active');
+      longCallBtn.classList.remove('active');
+      longPutBtn.classList.remove('active');
+      shortPutBtn.classList.remove('active');
+      updateLabels();
+      calculateAndDraw();
+    }
+
+    function switchToShortPut() {
+      isCall = false;
+      isShort = true;
+      shortPutBtn.classList.add('active');
+      longCallBtn.classList.remove('active');
+      longPutBtn.classList.remove('active');
+      shortCallBtn.classList.remove('active');
       updateLabels();
       calculateAndDraw();
     }
@@ -485,11 +536,12 @@
       calculateAndDraw();
     }
     function ensureCanvasBitmapSize(c){ const dpr=window.devicePixelRatio||1; const rect=c.getBoundingClientRect(); const cssW=Math.round(rect.width)||300; const cssH=Math.round(rect.height)||150; const tW=Math.round(cssW*dpr); const tH=Math.round(cssH*dpr); if(c.width!==tW||c.height!==tH){ c.width=tW; c.height=tH; ctx.setTransform(dpr,0,0,dpr,0,0); } }
-    
-    // Event listeners
+      // Event listeners
     stockSlider.addEventListener('input',()=>{ ST=Number(stockSlider.value); stockVal.textContent=`$${ST}`; calculateAndDraw(); });
-    callBtn.addEventListener('click', switchToCall);
-    putBtn.addEventListener('click', switchToPut);
+    longCallBtn.addEventListener('click', switchToLongCall);
+    longPutBtn.addEventListener('click', switchToLongPut);
+    shortCallBtn.addEventListener('click', switchToShortCall);
+    shortPutBtn.addEventListener('click', switchToShortPut);
     
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
   </script>
