@@ -111,7 +111,7 @@ This project is released under the MIT License. See LICENSE for details.
 ## How to Use
 
 ### Live Demo
-Visit the live simulator: [https://manpreet-sangha.github.io/Call-Option-Payoff-Simulator/](https://manpreet-sangha.github.io/Call-Option-Payoff-Simulator/)
+Visit the live simulator: [https://manpreet-sangha.github.io/Options-Simulator/](https://manpreet-sangha.github.io/Options-Simulator/)
 
 ### Running Locally
 1. Clone the repository:
