@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Options Strategies - Bull Spread</title>
+  <style>
+    :root{
+      --strike-color: #2e7d32;
+      --premium-color: #9c27b0;
+      --stock-color: #2196f3;
+      --line-default: #1a237e;
+      --canvas-bg: #ffffff;
+      --call-color: #1976d2;
+      --put-color: #d32f2f;
+      --long-color: #4caf50;
+      --short-color: #f44336;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--canvas-bg);
+      padding: 18px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      color: #111;
+      display:flex;
+      justify-content:center;
+    }
+    .container {
+      width:1100px; max-width:100%;
+      background:#fff; border-radius:10px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.08); overflow:hidden;
+    }
+    header { padding:16px 20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+    .header-left { display:flex; flex-direction:column; gap:4px; }
+    h1 { font-size:18px; color:#222; margin-bottom:4px; }
+    .subtitle { color:#666; font-size:13px; }
+    .nav-btn { padding:8px 16px; background:#2196f3; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; text-decoration:none; font-size:13px; }
+    .nav-btn:hover { background:#1976d2; }
+
+    .strategy-info { padding:16px 20px; background:#f8f9fa; border-bottom:1px solid #eee; }
+    .strategy-title { font-size:16px; font-weight:700; color:#1976d2; margin-bottom:8px; }
+    .strategy-desc { font-size:13px; color:#555; line-height:1.6; }
+    .strategy-formula { margin-top:12px; padding:12px; background:#fff; border-radius:6px; border:1px solid #e0e0e0; }
+    .formula-row { display:flex; gap:20px; flex-wrap:wrap; font-size:13px; margin-bottom:6px; }
+    .formula-item { display:flex; align-items:center; gap:6px; }
+    .formula-label { font-weight:600; color:#333; }
+    .formula-value { color:#1976d2; font-weight:500; }
+
+    .controls { display:flex; gap:12px; align-items:center; padding:12px 18px; background:#fbfdff; border-bottom:1px solid #eee; flex-wrap:wrap; }
+    .control { display:flex; flex-direction:column; gap:6px; padding:6px 8px; border-radius:8px; border:1px solid #e6eef8; min-width:180px; background:#fff; }
+    .swatch { width:14px; height:14px; border-radius:3px; display:inline-block; margin-right:8px; }
+    .fixed-display { font-size:14px; font-weight:700; padding:6px 8px; background:#fafafa; border-radius:6px; color:#111; border:1px solid #eee; }
+
+    .main { display:flex; gap:0; }
+    .chart-column { flex:1 1 auto; min-height:560px; display:flex; flex-direction:column; }
+    .canvas-container { padding:16px; background:var(--canvas-bg); height:560px; display:flex; align-items:center; justify-content:center; position:relative; }
+    canvas { border:2px solid #ddd; border-radius:8px; background:var(--canvas-bg); width:100%; height:100%; display:block; }
+
+    .legend { padding:10px 20px; display:flex; gap:18px; align-items:center; justify-content:center; border-top:1px solid #eee; background:#fff; flex-wrap:wrap; }
+    .legend-item { display:flex; align-items:center; gap:8px; font-size:13px; color:#333; }
+
+    .results { padding:12px 20px 20px 20px; background:#fff; border-top:1px solid #eee; font-size:13px; }
+    .result-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0; }
+    .result-row:last-child { border-bottom:none; }
+    .result-label { font-weight:600; color:#333; }
+    .result-value { font-weight:700; color:#2b6cb0; }
+    .result-section { margin-top:12px; padding-top:12px; border-top:2px solid #e0e0e0; }
+    .result-section-title { font-weight:700; color:#1976d2; margin-bottom:8px; font-size:14px; }
+
+    .disclaimer { padding:16px 20px; background:#f8f9fa; border-top:1px solid #eee; font-size:11px; color:#666; text-align:center; line-height:1.5; }
+
+    @media (max-width:900px) { .container { width:100%; } .canvas-container { height:420px; } }
+  </style>
+</head>
+<body>
+  <div class="container" role="main">
+    <header>
+      <div class="header-left">
+        <h1>Options Strategies Simulator</h1>
+        <div class="subtitle">Interactive visualizer for learning options trading strategies.</div>
+      </div>
+      <a href="index.html" class="nav-btn">← Back to Basic Options</a>
+    </header>
+
+    <div class="strategy-info">
+      <div class="strategy-title">📈 Bull Call Spread Strategy</div>
+      <div class="strategy-desc">
+        A <strong>Bull Call Spread</strong> is a moderately bullish strategy that involves buying a call option at a lower strike price (K₁) 
+        and selling a call option at a higher strike price (K₂). This limits both potential profit and potential loss compared to buying a single call.
+        The strategy profits when the stock price rises, but caps the maximum gain at the difference between strikes minus net premium paid.
+      </div>
+      <div class="strategy-formula">
+        <div class="formula-row">
+          <div class="formula-item"><span class="formula-label">Max Profit:</span><span class="formula-value">(K₂ - K₁) - Net Premium</span></div>
+          <div class="formula-item"><span class="formula-label">Max Loss:</span><span class="formula-value">Net Premium Paid</span></div>
+        </div>
+        <div class="formula-row">
+          <div class="formula-item"><span class="formula-label">Breakeven:</span><span class="formula-value">K₁ + Net Premium</span></div>
+          <div class="formula-item"><span class="formula-label">Outlook:</span><span class="formula-value">Moderately Bullish</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls" aria-label="Controls">
+      <div class="control">
+        <div><span class="swatch" style="background:var(--long-color)"></span> Long Call Strike (K₁)</div>
+        <div class="fixed-display" style="color:var(--long-color)">K₁ = $75</div>
+      </div>
+
+      <div class="control">
+        <div><span class="swatch" style="background:var(--short-color)"></span> Short Call Strike (K₂)</div>
+        <div class="fixed-display" style="color:var(--short-color)">K₂ = $85</div>
+      </div>
+
+      <div class="control">
+        <div><span class="swatch" style="background:var(--premium-color)"></span> Net Premium Paid</div>
+        <div class="fixed-display" style="color:var(--premium-color)" id="netPremiumDisplay">$4.00</div>
+      </div>
+
+      <div class="control">
+        <div><span class="swatch" style="background:var(--stock-color)"></span> Stock price at maturity S<sub>T</sub></div>
+        <div style="display:flex;justify-content:space-between">
+          <div style="font-size:12px;color:#666">Range: $60 — $100</div>
+          <div id="stockVal" style="font-weight:700;color:var(--stock-color)">$80</div>
+        </div>
+        <input id="stockSlider" type="range" min="60" max="100" step="1" value="80" style="margin-top:8px" />
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="chart-column">
+        <div class="canvas-container">
+          <canvas id="payoffChart" aria-label="Bull spread payoff chart"></canvas>
+        </div>
+
+        <div class="legend">
+          <div class="legend-item"><div style="width:36px;height:4px;background:var(--long-color)"></div> Long Call (K₁=$75)</div>
+          <div class="legend-item"><div style="width:36px;height:4px;background:var(--short-color)"></div> Short Call (K₂=$85)</div>
+          <div class="legend-item"><div style="width:36px;height:4px;background:#1976d2"></div> Combined Spread</div>
+          <div class="legend-item"><div style="width:36px;height:4px;background:#ff9800"></div> Breakeven</div>
+        </div>
+
+        <div class="results">
+          <div class="result-section-title">Strategy Components</div>
+          <div class="result-row"><div class="result-label">Long Call @ K₁ = $75 (Premium paid)</div><div class="result-value" style="color:#f44336">-$6.00</div></div>
+          <div class="result-row"><div class="result-label">Short Call @ K₂ = $85 (Premium received)</div><div class="result-value" style="color:#4caf50">+$2.00</div></div>
+          <div class="result-row"><div class="result-label">Net Premium Paid</div><div class="result-value" id="resultNetPremium">-$4.00</div></div>
+          
+          <div class="result-section">
+            <div class="result-section-title">Current Scenario (S<sub>T</sub> = <span id="resultST">$80</span>)</div>
+            <div class="result-row"><div class="result-label">Long Call Payoff [max(S<sub>T</sub>-K₁, 0)]</div><div class="result-value" id="resultLongPayoff">$5.00</div></div>
+            <div class="result-row"><div class="result-label">Short Call Payoff [-max(S<sub>T</sub>-K₂, 0)]</div><div class="result-value" id="resultShortPayoff">$0.00</div></div>
+            <div class="result-row"><div class="result-label">Gross Payoff</div><div class="result-value" id="resultGrossPayoff">$5.00</div></div>
+            <div class="result-row"><div class="result-label"><strong>Net Profit/Loss</strong></div><div class="result-value" id="resultNetPL" style="font-size:16px">+$1.00</div></div>
+          </div>
+
+          <div class="result-section">
+            <div class="result-section-title">Key Levels</div>
+            <div class="result-row"><div class="result-label">Breakeven Price</div><div class="result-value" id="resultBreakeven">$79.00</div></div>
+            <div class="result-row"><div class="result-label">Maximum Profit (at S<sub>T</sub> ≥ K₂)</div><div class="result-value" id="resultMaxProfit" style="color:#4caf50">+$6.00</div></div>
+            <div class="result-row"><div class="result-label">Maximum Loss (at S<sub>T</sub> ≤ K₁)</div><div class="result-value" id="resultMaxLoss" style="color:#f44336">-$4.00</div></div>
+            <div class="result-row"><div class="result-label">Status</div><div class="result-value" id="resultStatus">Profitable</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="disclaimer">
+      <strong>Disclaimer:</strong> This information is for educational purposes only and should not be considered financial advice. Options trading involves risk, and you should consult with a financial professional before making any investment decisions.
+    </div>
+  </div>
+
+  <script>
+    // Bull Call Spread Parameters
+    const K1 = 75;  // Long call strike (lower)
+    const K2 = 85;  // Short call strike (higher)
+    const C1 = 6;   // Premium paid for long call
+    const C2 = 2;   // Premium received for short call
+    const NET_PREMIUM = C1 - C2;  // Net premium paid
+
+    const canvas = document.getElementById('payoffChart');
+    const ctx = canvas.getContext('2d');
+    const stockSlider = document.getElementById('stockSlider');
+    const stockVal = document.getElementById('stockVal');
+
+    let ST = Number(stockSlider.value);
+
+    function calculateLongCallPayoff(ST, K) {
+      return Math.max(ST - K, 0);
+    }
+
+    function calculateShortCallPayoff(ST, K) {
+      return -Math.max(ST - K, 0);
+    }
+
+    function calculateSpreadPayoff(ST) {
+      const longPayoff = calculateLongCallPayoff(ST, K1);
+      const shortPayoff = calculateShortCallPayoff(ST, K2);
+      return longPayoff + shortPayoff - NET_PREMIUM;
+    }
+
+    function ensureCanvasSize(canvas) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const cssW = Math.max(300, Math.round(rect.width));
+      const cssH = Math.max(150, Math.round(rect.height));
+      const targetW = Math.round(cssW * dpr);
+      const targetH = Math.round(cssH * dpr);
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+    }
+
+    function calculateAndDraw() {
+      ST = Number(stockSlider.value);
+      
+      const longPayoff = calculateLongCallPayoff(ST, K1);
+      const shortPayoff = calculateShortCallPayoff(ST, K2);
+      const grossPayoff = longPayoff + shortPayoff;
+      const netPL = grossPayoff - NET_PREMIUM;
+      const breakeven = K1 + NET_PREMIUM;
+      const maxProfit = (K2 - K1) - NET_PREMIUM;
+      const maxLoss = -NET_PREMIUM;
+
+      // Update display
+      document.getElementById('resultST').textContent = `$${ST}`;
+      document.getElementById('resultLongPayoff').textContent = `$${longPayoff.toFixed(2)}`;
+      document.getElementById('resultShortPayoff').textContent = `$${shortPayoff.toFixed(2)}`;
+      document.getElementById('resultGrossPayoff').textContent = `$${grossPayoff.toFixed(2)}`;
+      
+      const netPLEl = document.getElementById('resultNetPL');
+      netPLEl.textContent = `${netPL >= 0 ? '+' : ''}$${netPL.toFixed(2)}`;
+      netPLEl.style.color = netPL >= 0 ? '#4caf50' : '#f44336';
+      
+      document.getElementById('resultBreakeven').textContent = `$${breakeven.toFixed(2)}`;
+      document.getElementById('resultMaxProfit').textContent = `+$${maxProfit.toFixed(2)}`;
+      document.getElementById('resultMaxLoss').textContent = `-$${NET_PREMIUM.toFixed(2)}`;
+      
+      const statusEl = document.getElementById('resultStatus');
+      if (netPL > 0) {
+        statusEl.textContent = 'Profitable ✓';
+        statusEl.style.color = '#4caf50';
+      } else if (netPL === 0) {
+        statusEl.textContent = 'Breakeven';
+        statusEl.style.color = '#ff9800';
+      } else {
+        statusEl.textContent = 'Loss';
+        statusEl.style.color = '#f44336';
+      }
+
+      draw(ST, netPL, breakeven, maxProfit, maxLoss);
+    }
+
+    function draw(ST, netPL, breakeven, maxProfit, maxLoss) {
+      ensureCanvasSize(canvas);
+      const cssW = canvas.width / (window.devicePixelRatio || 1);
+      const cssH = canvas.height / (window.devicePixelRatio || 1);
+      ctx.clearRect(0, 0, cssW, cssH);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, cssW, cssH);
+
+      const margin = 60;
+      const plotW = cssW - margin * 2;
+      const plotH = cssH - margin * 2;
+
+      const minPrice = 55;
+      const maxPrice = 105;
+      const priceRange = maxPrice - minPrice;
+
+      const minProfit = -NET_PREMIUM - 2;
+      const maxProfitVal = maxProfit + 2;
+      const profitRange = maxProfitVal - minProfit;
+
+      const priceToX = p => margin + ((p - minPrice) / priceRange) * plotW;
+      const profitToY = v => margin + (1 - ((v - minProfit) / profitRange)) * plotH;
+
+      // Grid
+      ctx.save();
+      ctx.strokeStyle = '#e6eef8';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 4]);
+      for (let i = 0; i <= 4; i++) {
+        const px = priceToX(minPrice + (priceRange * i / 4));
+        ctx.beginPath(); ctx.moveTo(px, margin); ctx.lineTo(px, margin + plotH); ctx.stroke();
+      }
+      for (let i = 0; i <= 4; i++) {
+        const py = profitToY(minProfit + (profitRange * i / 4));
+        ctx.beginPath(); ctx.moveTo(margin, py); ctx.lineTo(margin + plotW, py); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // Axes
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(margin, profitToY(0)); ctx.lineTo(margin + plotW, profitToY(0)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(margin, margin); ctx.lineTo(margin, margin + plotH); ctx.stroke();
+
+      const steps = 120;
+
+      // Draw individual leg payoffs (lighter, dashed)
+      // Long call payoff (without premium for visualization)
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = '#4caf50';
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const p = minPrice + (i / steps) * (maxPrice - minPrice);
+        const payoff = calculateLongCallPayoff(p, K1) - C1;
+        if (i === 0) ctx.moveTo(priceToX(p), profitToY(payoff));
+        else ctx.lineTo(priceToX(p), profitToY(payoff));
+      }
+      ctx.stroke();
+
+      // Short call payoff (without premium for visualization)
+      ctx.strokeStyle = '#f44336';
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const p = minPrice + (i / steps) * (maxPrice - minPrice);
+        const payoff = calculateShortCallPayoff(p, K2) + C2;
+        if (i === 0) ctx.moveTo(priceToX(p), profitToY(payoff));
+        else ctx.lineTo(priceToX(p), profitToY(payoff));
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.setLineDash([]);
+
+      // Combined spread payoff (main line)
+      ctx.strokeStyle = '#1976d2';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const p = minPrice + (i / steps) * (maxPrice - minPrice);
+        const payoff = calculateSpreadPayoff(p);
+        if (i === 0) ctx.moveTo(priceToX(p), profitToY(payoff));
+        else ctx.lineTo(priceToX(p), profitToY(payoff));
+      }
+      ctx.stroke();
+
+      // Overlay green for profitable region
+      ctx.strokeStyle = '#2e7d32';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      let profitStart = false;
+      for (let i = 0; i <= steps; i++) {
+        const p = minPrice + (i / steps) * (maxPrice - minPrice);
+        const payoff = calculateSpreadPayoff(p);
+        if (payoff > 0) {
+          if (!profitStart) {
+            ctx.moveTo(priceToX(p), profitToY(payoff));
+            profitStart = true;
+          } else {
+            ctx.lineTo(priceToX(p), profitToY(payoff));
+          }
+        } else {
+          profitStart = false;
+        }
+      }
+      ctx.stroke();
+
+      // Strike lines
+      ctx.setLineDash([6, 6]);
+      ctx.lineWidth = 2;
+      
+      // K1 line
+      ctx.strokeStyle = '#4caf50';
+      ctx.beginPath();
+      ctx.moveTo(priceToX(K1), margin);
+      ctx.lineTo(priceToX(K1), margin + plotH);
+      ctx.stroke();
+
+      // K2 line
+      ctx.strokeStyle = '#f44336';
+      ctx.beginPath();
+      ctx.moveTo(priceToX(K2), margin);
+      ctx.lineTo(priceToX(K2), margin + plotH);
+      ctx.stroke();
+
+      // Breakeven line
+      ctx.strokeStyle = '#ff9800';
+      ctx.beginPath();
+      ctx.moveTo(priceToX(breakeven), margin);
+      ctx.lineTo(priceToX(breakeven), margin + plotH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Current ST reference lines
+      ctx.setLineDash([8, 6]);
+      ctx.strokeStyle = '#2196f3';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(margin, profitToY(netPL));
+      ctx.lineTo(priceToX(ST), profitToY(netPL));
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(priceToX(ST), profitToY(netPL));
+      ctx.lineTo(priceToX(ST), margin + plotH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Current position dot
+      const dotColor = netPL >= 0 ? '#2e7d32' : '#f44336';
+      ctx.fillStyle = dotColor;
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(priceToX(ST), profitToY(netPL), 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Status label above dot
+      let status = '';
+      if (ST < K1) {
+        status = 'Max Loss Zone';
+      } else if (ST >= K1 && ST < breakeven) {
+        status = 'Loss Zone';
+      } else if (Math.abs(ST - breakeven) < 0.5) {
+        status = 'Breakeven';
+      } else if (ST >= breakeven && ST < K2) {
+        status = 'Profit Zone';
+      } else {
+        status = 'Max Profit Zone';
+      }
+
+      const labelY = Math.max(profitToY(netPL) - 15, 30);
+      const labelX = priceToX(ST);
+      
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.font = 'bold 12px Arial';
+      const textWidth = ctx.measureText(status).width;
+      const textHeight = 16;
+      const padding = 4;
+      
+      let adjustedLabelX = labelX - textWidth / 2;
+      if (adjustedLabelX < margin) adjustedLabelX = margin;
+      if (adjustedLabelX + textWidth > margin + plotW) adjustedLabelX = margin + plotW - textWidth;
+      
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(adjustedLabelX - padding, labelY - textHeight, textWidth + padding * 2, textHeight + padding, 3);
+      } else {
+        ctx.rect(adjustedLabelX - padding, labelY - textHeight, textWidth + padding * 2, textHeight + padding);
+      }
+      ctx.fill();
+      ctx.stroke();
+      
+      ctx.fillStyle = '#333';
+      ctx.textAlign = 'left';
+      ctx.fillText(status, adjustedLabelX, labelY - 4);
+
+      // Title
+      ctx.fillStyle = '#111';
+      ctx.font = 'bold 18px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Bull Call Spread: K₁=${K1} / K₂=${K2}`, Math.round(cssW / 2), 28);
+
+      // Y-axis labels
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 14px Arial';
+      ctx.textAlign = 'right';
+      ctx.fillText('$0', margin - 10, profitToY(0) + 5);
+      
+      ctx.fillStyle = '#4caf50';
+      ctx.fillText(`+$${maxProfit.toFixed(0)}`, margin - 10, profitToY(maxProfit) + 5);
+      
+      ctx.fillStyle = '#f44336';
+      ctx.fillText(`-$${NET_PREMIUM.toFixed(0)}`, margin - 10, profitToY(-NET_PREMIUM) + 5);
+      
+      ctx.fillStyle = netPL >= 0 ? '#4caf50' : '#f44336';
+      ctx.fillText((netPL >= 0 ? '+' : '') + `$${netPL.toFixed(0)}`, margin - 10, profitToY(netPL) + 5);
+
+      // Y-axis label
+      ctx.save();
+      ctx.translate(20, margin + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 16px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Profit/Loss ($)', 0, 0);
+      ctx.restore();
+
+      // X-axis labels
+      ctx.font = 'bold 14px Arial';
+      ctx.textAlign = 'center';
+      
+      ctx.fillStyle = '#4caf50';
+      ctx.fillText(`K₁=${K1}`, priceToX(K1), margin + plotH + 28);
+      
+      ctx.fillStyle = '#f44336';
+      ctx.fillText(`K₂=${K2}`, priceToX(K2), margin + plotH + 28);
+      
+      ctx.fillStyle = '#ff9800';
+      ctx.fillText(`BE=${breakeven.toFixed(0)}`, priceToX(breakeven), margin + plotH + 44);
+      
+      ctx.fillStyle = '#2196f3';
+      ctx.font = 'bold 18px Arial';
+      ctx.fillText(`${ST}`, priceToX(ST), margin + plotH + 60);
+
+      // X-axis label
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 16px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Stock Price at Expiration (S', margin + plotW / 2 - 10, margin + plotH + 80);
+      ctx.font = 'bold 12px Arial';
+      ctx.fillText('T', margin + plotW / 2 + 45, margin + plotH + 83);
+      ctx.font = 'bold 16px Arial';
+      ctx.fillText(') ($)', margin + plotW / 2 + 55, margin + plotH + 80);
+
+      // Footer
+      ctx.fillStyle = '#666';
+      ctx.font = '14px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Bull Call Spread Payoff Diagram', Math.round(cssW / 2), Math.round(cssH) - 8);
+    }
+
+    // Initialize
+    function init() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const cssW = Math.round(rect.width) || 300;
+      const cssH = Math.round(rect.height) || 150;
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      calculateAndDraw();
+    }
+
+    stockSlider.addEventListener('input', () => {
+      ST = Number(stockSlider.value);
+      stockVal.textContent = `$${ST}`;
+      calculateAndDraw();
+    });
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>

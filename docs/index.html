@@ -28,9 +28,12 @@
       background:#fff; border-radius:10px;
       box-shadow:0 10px 30px rgba(0,0,0,0.08); overflow:hidden;
     }
-    header { padding:16px 20px; border-bottom:1px solid #eee; }
+    header { padding:16px 20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+    .header-left { display:flex; flex-direction:column; gap:4px; }
     h1 { font-size:18px; color:#222; margin-bottom:4px; }
     .subtitle { color:#666; font-size:13px; }
+    .nav-btn { padding:8px 16px; background:#1976d2; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; text-decoration:none; font-size:13px; transition: background 0.2s; }
+    .nav-btn:hover { background:#1565c0; }
 
     .controls { display:flex; gap:12px; align-items:center; padding:12px 18px; background:#fbfdff; border-bottom:1px solid #eee; flex-wrap:wrap; }
     .control { display:flex; flex-direction:column; gap:6px; padding:6px 8px; border-radius:8px; border:1px solid #e6eef8; min-width:180px; background:#fff; }
@@ -56,14 +59,19 @@
     .result-label { font-weight:600; color:#333; }
     .result-value { font-weight:700; color:#2b6cb0; }
 
+    .disclaimer { padding:16px 20px; background:#f8f9fa; border-top:1px solid #eee; font-size:11px; color:#666; text-align:center; line-height:1.5; }
+
     @media (max-width:900px) { .container { width:100%; } .canvas-container { height:420px; } }
   </style>
 </head>
 <body>
   <div class="container" role="main">
     <header>
-      <h1>Options Payoff Simulator</h1>
-      <div class="subtitle">Interactive visualizer for learning call and put option payoffs.</div>
+      <div class="header-left">
+        <h1>Options Payoff Simulator</h1>
+        <div class="subtitle">Interactive visualizer for learning call and put option payoffs.</div>
+      </div>
+      <a href="strategies.html" target="_blank" class="nav-btn">📈 Options Strategies →</a>
     </header>
 
     <div class="controls" aria-label="Controls">      <div class="control option-selector">
@@ -121,6 +129,10 @@
           <div class="result-row"><div class="result-label">Breakeven</div><div class="result-value" id="resultBreakeven">$83.00</div></div>
         </div>
       </div>
+    </div>
+    
+    <div class="disclaimer">
+      <strong>Disclaimer:</strong> This information is for educational purposes only and should not be considered financial advice. Options trading involves risk, and you should consult with a financial professional before making any investment decisions.
     </div>
   </div>
 
